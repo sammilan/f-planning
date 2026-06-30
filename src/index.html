@@ -79,7 +79,8 @@
   .pie .cv{height:225px;}
 
   .dropzone{border:1.5px dashed #BFC4B8; border-radius:12px; background:#FBFCF9; padding:18px;
-        text-align:center; color:var(--graphite); font-size:13px; margin-bottom:16px; cursor:pointer;}
+        text-align:center; color:var(--graphite); font-size:13px; margin-bottom:16px; cursor:pointer;
+        position:relative;}
   .dropzone b{color:var(--ink);}
   .dropzone.drag{border-color:var(--green); background:#F0F6F2;}
   .btnrow{display:flex; gap:8px; justify-content:center; margin-bottom:18px; flex-wrap:wrap;}
@@ -215,7 +216,7 @@
   <div class="tab active" id="tab-summary">
     <div class="dropzone" id="dropzone">
       <b>Drop statements here</b> or tap to choose<br>PDF or CSV · Amex, Chase, Citi · multiple files OK
-      <input type="file" id="fileinput" multiple accept=".pdf,.csv,.CSV,.PDF" style="display:none">
+      <input type="file" id="fileinput" multiple accept=".pdf,.csv,.CSV,.PDF" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;">
     </div>
     <div id="importresults"></div>
     <div id="reviewbox"></div>
