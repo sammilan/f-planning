@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bank for a Buck</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F6F2; --card:#FFFFFF; --ink:#141B2A; --graphite:#5B6472;
+    --line:#E3E5DE; --green:#1E6E52; --red:#B3402F; --amber:#B98A2F;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans',sans-serif; font-size:15px; line-height:1.5;}
+  .wrap{max-width:780px; margin:0 auto; padding:18px 16px 96px;}
+  header{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px; gap:8px;}
+  h1{font-family:'IBM Plex Serif',serif; font-weight:600; font-size:22px;}
+  .hdr-r{display:flex; align-items:center; gap:8px;}
+  .seal{border:1.5px solid var(--green); color:var(--green); border-radius:999px;
+        font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.08em;
+        padding:4px 9px; text-transform:uppercase; white-space:nowrap; margin-top:4px;}
+  .seal::before{content:"●"; margin-right:5px; font-size:8px; vertical-align:1px;}
+  .gear{border:1px solid var(--line); background:#fff; border-radius:10px; width:34px; height:34px;
+        cursor:pointer; color:var(--graphite); display:flex; align-items:center; justify-content:center;}
+  .gear svg{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8;}
+
+  .filters{display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:16px; position:relative; scrollbar-width:none;}
+  .filters::-webkit-scrollbar{display:none;}
+  .fchip{flex:none; border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 13px;
+        font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600; color:var(--ink); cursor:pointer;}
+  .fchip.on{border-color:var(--ink); background:var(--ink); color:#fff;}
+  .pop{position:absolute; top:40px; left:0; background:#fff; border:1px solid var(--line); border-radius:12px;
+       box-shadow:0 8px 24px rgba(20,27,42,.12); padding:8px; z-index:60; min-width:190px; display:none;
+       max-height:340px; overflow-y:auto;}
+  .pop.open{display:block;}
+  .pop label{display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:8px; font-size:13.5px; cursor:pointer;}
+  .pop label:hover{background:#FAFBF8;}
+  .pop input{accent-color:var(--ink);}
+  .pop .popdone{width:100%; margin-top:6px; border:none; background:var(--ink); color:#fff; border-radius:8px;
+       padding:8px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600; cursor:pointer;}
+
+  nav{position:fixed; bottom:0; left:0; right:0; background:rgba(255,255,255,.96); backdrop-filter:blur(8px);
+      border-top:1px solid var(--line); display:flex; justify-content:space-around; z-index:50;
+      padding:6px 4px calc(6px + env(safe-area-inset-bottom));}
+  nav button{border:none; background:none; cursor:pointer; color:var(--graphite);
+      font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; letter-spacing:.05em;
+      display:flex; flex-direction:column; align-items:center; gap:3px; padding:4px 10px;}
+  nav button svg{width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.8;}
+  nav button.active{color:var(--ink);}
+  nav button.active::after{content:""; width:16px; height:2.5px; background:var(--ink); border-radius:2px; margin-top:1px;}
+  @media(min-width:700px){
+    nav{position:sticky; top:0; bottom:auto; border-top:none; border-bottom:1px solid var(--line);
+        justify-content:center; gap:8px; margin:0 -16px 20px;}
+    .wrap{padding-bottom:40px;}
+  }
+  .tab{display:none;} .tab.active{display:block; animation:fade .18s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+  @media (prefers-reduced-motion: reduce){.tab.active{animation:none;} .caret{transition:none;}}
+
+  .stats{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px;}
+  @media(min-width:560px){.stats{grid-template-columns:repeat(4,1fr);}}
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px;}
+  .stat .label{font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--graphite); margin-bottom:5px;}
+  .stat .value{font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:600;}
+  .stat .delta{font-size:12px; margin-top:2px; font-family:'IBM Plex Mono',monospace;}
+  .up{color:var(--red);} .down{color:var(--green);}
+  section{margin-bottom:28px;}
+  h2{font-family:'IBM Plex Serif',serif; font-weight:600; font-size:18px; margin-bottom:3px;}
+  .h2sub{color:var(--graphite); font-size:13px; margin-bottom:12px;}
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px;}
+  .chartbox{height:250px;}
+  .pies{display:grid; grid-template-columns:1fr; gap:14px;}
+  @media(min-width:600px){.pies{grid-template-columns:1fr 1fr;}}
+  .pie h3{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.07em;
+      text-transform:uppercase; color:var(--graphite); text-align:center; margin-bottom:6px;}
+  .pie .cv{height:225px;}
+
+  .dropzone{border:1.5px dashed #BFC4B8; border-radius:12px; background:#FBFCF9; padding:18px;
+        text-align:center; color:var(--graphite); font-size:13px; margin-bottom:16px; cursor:pointer;}
+  .dropzone b{color:var(--ink);}
+  .dropzone.drag{border-color:var(--green); background:#F0F6F2;}
+  .btnrow{display:flex; gap:8px; justify-content:center; margin-bottom:18px; flex-wrap:wrap;}
+  .btn{border:1px solid var(--line); background:#fff; border-radius:10px; padding:8px 14px; cursor:pointer;
+       font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600; color:var(--ink);}
+  .btn.primary{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .btn.danger{color:var(--red); border-color:#E5C9C3;}
+
+  .importcard{background:#EFF5F1; border:1px solid #C8DCD0; border-radius:12px; padding:14px 16px; margin-bottom:14px;}
+  .importcard h3{font-size:14px; font-weight:600;}
+  .importcard p{font-size:12.5px; color:var(--graphite); margin:2px 0 10px;}
+  .importcard.err{background:#F9EEEC; border-color:#E5C9C3;}
+
+  .review{background:#FFF9EC; border:1px solid #EAD9A8; border-radius:12px; padding:14px 16px; margin-bottom:18px;}
+  .review h3{font-size:14px; font-weight:600; margin-bottom:2px;}
+  .review p{font-size:12.5px; color:var(--graphite); margin-bottom:8px;}
+  .rv{display:flex; align-items:center; gap:8px; padding:9px 0; border-top:1px dashed #EAD9A8; font-size:13px; flex-wrap:wrap;}
+  .rv .m{font-family:'IBM Plex Mono',monospace; font-size:12px; flex:1 1 100%; }
+  .rv select{border:1px solid var(--line); border-radius:8px; padding:5px 8px; font-size:12.5px; background:#fff;
+       font-family:'IBM Plex Sans',sans-serif; max-width:200px;}
+  .pill{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff;}
+  .pill button{border:none; background:none; font-family:'IBM Plex Mono',monospace; font-size:10.5px;
+      font-weight:600; padding:5px 10px; color:var(--graphite); cursor:pointer;}
+  .pill button.on{background:var(--ink); color:#fff;}
+
+  .tablewrap{overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:12px;}
+  table{border-collapse:collapse; width:100%; font-size:13px;}
+  th,td{padding:9px 12px; text-align:right; border-top:1px solid var(--line); white-space:nowrap;}
+  thead th{border-top:none; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em;
+      text-transform:uppercase; color:var(--graphite); font-weight:600;}
+  th:first-child,td:first-child{text-align:left; position:sticky; left:0; background:var(--card);}
+  td{font-family:'IBM Plex Mono',monospace;}
+  td:first-child{font-family:'IBM Plex Sans',sans-serif; font-weight:500;}
+  .catdot{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:8px; vertical-align:-1px;}
+  .fvtag{font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; border-radius:4px;
+      padding:1px 5px; margin-left:7px; vertical-align:1px; letter-spacing:.04em;}
+  .tagF{background:#E5EEEA; color:var(--green);}
+  .tagV{background:#F4EEE0; color:var(--amber);}
+  .tagM{background:#EBEDF1; color:var(--graphite);}
+  tr.subtotal td{background:#FAFBF8; font-weight:600; border-top:2px solid var(--line);}
+  tr.grand td{background:#F2F4EE; font-weight:600;}
+
+  .ledger{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .lrow{display:flex; align-items:center; justify-content:space-between; padding:13px 16px;
+        border-top:1px solid var(--line); cursor:pointer; user-select:none;}
+  .cat:first-child .lrow{border-top:none;}
+  .lrow:hover{background:#FAFBF8;}
+  .lname{display:flex; align-items:center; gap:10px; font-weight:500; flex-wrap:wrap;}
+  .dot{width:10px; height:10px; border-radius:3px; flex:none;}
+  .caret{color:var(--graphite); font-size:11px; transition:transform .15s;}
+  .open > .lrow .caret{transform:rotate(90deg);}
+  .lamt{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+  .lpct{font-family:'IBM Plex Mono',monospace; color:var(--graphite); font-size:12px; margin-left:10px;}
+  .nest{display:none; background:#FAFBF8;}
+  .open > .nest{display:block;}
+  .srow{display:flex; justify-content:space-between; padding:9px 16px 9px 38px; border-top:1px dashed var(--line);
+        font-size:14px; cursor:pointer; align-items:center;}
+  .srow .lamt{font-weight:500; font-size:13.5px;}
+  .txns{display:none; border-left:3px solid var(--line); margin-left:38px;}
+  .sopen + .txns{display:block;}
+  .txn{display:flex; justify-content:space-between; gap:10px; padding:7px 16px 7px 14px; font-size:13px; color:var(--graphite);}
+  .txn .d{font-family:'IBM Plex Mono',monospace; font-size:12px; flex:none; width:78px;}
+  .txn .m{flex:1; color:var(--ink); word-break:break-word;}
+  .txn .a{font-family:'IBM Plex Mono',monospace; flex:none;}
+  .src{font-size:10px; font-family:'IBM Plex Mono',monospace; border:1px solid var(--line); border-radius:4px;
+       padding:1px 5px; color:var(--graphite); margin-left:6px;}
+  .note{font-size:12px; color:var(--graphite); margin-top:10px;}
+  .insight{display:flex; gap:12px; padding:13px 16px; border-top:1px solid var(--line); align-items:flex-start;}
+  .insight:first-child{border-top:none;}
+  .tag{flex:none; font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; letter-spacing:.05em;
+       border-radius:5px; padding:3px 7px; margin-top:2px; text-transform:uppercase;}
+  .t-sub{background:#F1EAF3; color:#7B5283;}
+  .t-spike{background:#F6E9E6; color:var(--red);}
+  .t-habit{background:#F4EEE0; color:var(--amber);}
+  .t-dup{background:#E8EEF4; color:#3D5A80;}
+  .insight .save{font-family:'IBM Plex Mono',monospace; color:var(--green); font-weight:600; white-space:nowrap; margin-left:auto;}
+  .insight p{font-size:13.5px; color:var(--graphite);}
+  .insight b{color:var(--ink); font-weight:600;}
+  .seeall{display:block; text-align:center; font-family:'IBM Plex Mono',monospace; font-size:12px;
+        color:var(--green); font-weight:600; padding:12px; cursor:pointer; border-top:1px solid var(--line);}
+  .empty{text-align:center; padding:36px 16px; color:var(--graphite); font-size:14px;}
+  .empty h3{font-family:'IBM Plex Serif',serif; color:var(--ink); font-size:18px; margin-bottom:6px;}
+  .mselect{border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:13px; background:#fff;
+       font-family:'IBM Plex Sans',sans-serif; margin-bottom:12px;}
+
+  /* Settings sheet */
+  .sheetbg{position:fixed; inset:0; background:rgba(20,27,42,.35); z-index:80; display:none;}
+  .sheetbg.open{display:block;}
+  .sheet{position:fixed; bottom:0; left:0; right:0; background:#fff; border-radius:16px 16px 0 0; z-index:90;
+       max-width:780px; margin:0 auto; padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+       max-height:80vh; overflow-y:auto; display:none;}
+  .sheet.open{display:block;}
+  .sheet h2{margin-bottom:10px;}
+  .sheet .row{display:flex; justify-content:space-between; align-items:center; padding:10px 0;
+       border-top:1px solid var(--line); font-size:13.5px; gap:10px;}
+  .sheet .row:first-of-type{border-top:none;}
+  .rulesmall{font-family:'IBM Plex Mono',monospace; font-size:11.5px; word-break:break-all;}
+  .ruledel{border:none; background:none; color:var(--red); cursor:pointer; font-size:16px; flex:none;}
+  .privacy{background:#EFF5F1; border:1px solid #C8DCD0; border-radius:10px; padding:12px; font-size:12.5px;
+       color:var(--graphite); margin-bottom:14px;}
+  .toast{position:fixed; bottom:84px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+       border-radius:10px; padding:10px 16px; font-family:'IBM Plex Mono',monospace; font-size:12px; z-index:100;
+       opacity:0; pointer-events:none; transition:opacity .25s;}
+  .toast.show{opacity:1;}
+  footer{border-top:1px solid var(--line); margin-top:40px; padding-top:14px; font-size:11.5px; color:var(--graphite);
+         font-family:'IBM Plex Mono',monospace; text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Bank for a Buck</h1>
+    <div class="hdr-r">
+      <div class="seal">Local only · No cloud</div>
+      <button class="gear" id="gearbtn" aria-label="Settings & data">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.6 1.6 0 00-1-1.5 1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H3a2 2 0 110-4h.1a1.6 1.6 0 001.5-1 1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3h0a1.6 1.6 0 001-1.5V3a2 2 0 114 0v.1a1.6 1.6 0 001 1.5h0a1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8v0a1.6 1.6 0 001.5 1H21a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="filters" id="filters">
+    <button class="fchip" data-pop="year">Year ▾</button>
+    <button class="fchip" data-pop="cat">All categories ▾</button>
+    <button class="fchip" data-pop="card">All cards ▾</button>
+    <button class="fchip" data-pop="fv">All types ▾</button>
+    <div class="pop" id="pop-year"></div>
+    <div class="pop" id="pop-cat"></div>
+    <div class="pop" id="pop-card"></div>
+    <div class="pop" id="pop-fv"></div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="tab active" id="tab-summary">
+    <div class="dropzone" id="dropzone">
+      <b>Drop statements here</b> or tap to choose<br>PDF or CSV · Amex, Chase, Citi · multiple files OK
+      <input type="file" id="fileinput" multiple accept=".pdf,.csv,.CSV,.PDF" style="display:none">
+    </div>
+    <div id="importresults"></div>
+    <div id="reviewbox"></div>
+    <div id="summarybody"></div>
+  </div>
+
+  <!-- TRENDS -->
+  <div class="tab" id="tab-trends">
+    <div id="trendsbody"></div>
+  </div>
+
+  <!-- LEDGER -->
+  <div class="tab" id="tab-ledger">
+    <div id="ledgerbody"></div>
+  </div>
+
+  <!-- CUTS -->
+  <div class="tab" id="tab-cuts">
+    <div id="cutsbody"></div>
+  </div>
+
+  <!-- FORECAST -->
+  <div class="tab" id="tab-forecast">
+    <div id="forecastbody"></div>
+  </div>
+
+  <footer>BANK FOR A BUCK · ALL PROCESSING IN-BROWSER · YOUR DATA STAYS ON THIS DEVICE</footer>
+</div>
+
+<nav id="nav">
+  <button class="active" data-t="summary"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/></svg>SUMMARY</button>
+  <button data-t="trends"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M21 7v5h-5"/></svg>TRENDS</button>
+  <button data-t="ledger"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg>LEDGER</button>
+  <button data-t="cuts"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1L20 20M8.1 15.9L20 4"/></svg>CUTS</button>
+  <button data-t="forecast"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 17c2-5 4-8 7-9m3-1.5c2 .5 4 2.5 5 6" stroke-dasharray="3 2"/></svg>NEXT 3 MO</button>
+</nav>
+
+<div class="sheetbg" id="sheetbg"></div>
+<div class="sheet" id="sheet">
+  <h2>Data &amp; settings</h2>
+  <div class="privacy">Everything lives in this browser's local storage on this device. Nothing is ever uploaded.
+  Export a backup before clearing your browser data.</div>
+  <div class="btnrow" style="justify-content:flex-start">
+    <button class="btn" id="exportbtn">EXPORT BACKUP (.json)</button>
+    <button class="btn" id="importbtn">RESTORE BACKUP</button>
+    <input type="file" id="backupinput" accept=".json" style="display:none">
+    <button class="btn" id="samplebtn">LOAD SAMPLE DATA</button>
+    <button class="btn danger" id="clearbtn">ERASE ALL DATA</button>
+  </div>
+  <h2 style="font-size:16px; margin-top:14px;">Saved merchant rules</h2>
+  <div class="h2sub">Tap × to forget a rule. The merchant will reappear in the review queue on next import.</div>
+  <div id="ruleslist"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="src/core.js"></script>
+<script>/* BFB_WORKER_SRC: https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js */
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+}
+</script>
+<script src="src/parsers.js"></script>
+<script src="src/ui.js"></script>
+</body>
+</html>
