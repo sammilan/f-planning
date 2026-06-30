@@ -80,10 +80,12 @@ const KEYWORD_RULES = [
   [/\bMTR\b|TST\s*\*\s*MTR|MERCURYS COFFEE|ILLY\s*CAFF?E|SUMMIT CAFE|SEA\d+.*CAFE|THRIVE.*CAFE|CTLP.*CANTEEN|CANTEEN VENDING|BIG FISH SUSHI/, "Dining","Coffee & tea"],
   /* Water utility — Chase/Citi statements */
   [/SAMMAMISH PLATEAU WATER|PLATEAU WATER/, "Home & Utilities","Water & trash"],
-  /* Parks & recreation */
-  [/KING COUNTY PARKS|LAKE SAMMAMISH ST PK|SAMMAMISH ST PK/, "Kids","Activities & camps"],
-  /* Car wash */
-  [/WASH SPOT/, "Transport","Auto service"],
+  /* Parks & recreation — Lake Sammamish / Sammamish ST PK = kids playground visits;
+     King County Parks charges appear on dog-park/off-leash area visits */
+  [/KING COUNTY PARKS/, "Pets","Grooming & care"],
+  [/LAKE SAMMAMISH ST PK|SAMMAMISH ST PK/, "Kids","Activities & camps"],
+  /* Wash Spot = self-serve dog wash, not a car wash */
+  [/WASH SPOT/, "Pets","Grooming & care"],
   /* Kids: craft + digital purchases — user asked Google Tasty Travels grouped with Cricut */
   [/CRICUT|TASTY TRAVELS|GOOGLE.*TOWNSHIP|GOOGLE.*TASTY/, "Shopping","Online"],
   /* School of Rock = kids music lessons; Issaquah SD / MSB = school district fees */
