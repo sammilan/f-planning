@@ -707,7 +707,20 @@ document.getElementById("et-save").addEventListener("click", ()=>{
 
 /* ---------- File input wiring ---------- */
 const dz = document.getElementById("dropzone"), fi = document.getElementById("fileinput");
-fi.addEventListener("change", e=>{ alert("FILES: " + e.target.files.length); if (e.target.files.length){ importFiles([...e.target.files]); } e.target.value=""; });
+/* iOS Safari: 'change' is unreliable on file inputs — 'input' fires more consistently.
+   Both listeners share a debounce flag so a browser that fires both doesn't double-import. */
+let _fileHandling = false;
+function _onFilePicked(e){
+  if (_fileHandling) return;
+  const list = e.target.files;
+  if (!list || !list.length) return;
+  _fileHandling = true;
+  importFiles([...list]);
+  try { e.target.value = ""; } catch(_){}
+  setTimeout(()=>{ _fileHandling = false; }, 2000);
+}
+fi.addEventListener("change", _onFilePicked);
+fi.addEventListener("input",  _onFilePicked);
 ["dragover","dragenter"].forEach(ev=>dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("drag"); }));
 ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("drag"); }));
 dz.addEventListener("drop", e=>{ if (e.dataTransfer.files.length) importFiles([...e.dataTransfer.files]); });

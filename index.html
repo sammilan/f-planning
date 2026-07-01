@@ -262,8 +262,8 @@ License: MIT
   <!-- SUMMARY -->
   <div class="tab active" id="tab-summary">
     <div class="dropzone" id="dropzone">
-      <b>Drop statements here</b> or tap to choose<br>PDF or CSV · Amex, Chase, Citi · multiple files OK<br><small style="color:#aaa">v2026-07-01b</small><br>
-      <input type="file" id="fileinput" multiple accept=".pdf,.csv,.CSV,.PDF,application/pdf,text/csv">
+      <b>Tap to choose statements</b><br>PDF or CSV · Amex, Chase, Citi · multiple files OK<br>
+      <input type="file" id="fileinput" multiple accept=".pdf,.csv,.CSV,.PDF,application/pdf,text/csv" style="margin-top:8px">
     </div>
     <div id="importresults"></div>
     <div id="reviewbox"></div>
@@ -779,22 +779,21 @@ function txnKey(t){ return t.date + "|" + t.amount.toFixed(2) + "|" + normMercha
 const PDF_DEBUG = {};   // cardId -> {filename, card, lines:[{line,status,reason,note}]}
 
 async function importFiles(files){
-  alert("importFiles start, count=" + files.length);
-  if (files.length) snapshot();
+  try { if (files.length) snapshot(); } catch(_){}
   const resultsEl = document.getElementById("importresults");
-  alert("resultsEl=" + (resultsEl ? "found" : "NULL"));
+  if (!resultsEl) return;
   for (const file of files){
     const cardId = "imp_" + Math.random().toString(36).slice(2,8);
-    resultsEl.insertAdjacentHTML("afterbegin",
-      `<div class="importcard" id="${cardId}"><h3>Reading ${escapeHtml(file.name)}…</h3><p>Parsing locally in your browser.</p></div>`);
-    alert("card inserted, parsing...");
+    try {
+      resultsEl.insertAdjacentHTML("afterbegin",
+        `<div class="importcard" id="${cardId}"><h3>Reading ${escapeHtml(file.name)}…</h3><p>Parsing locally in your browser.</p></div>`);
+    } catch(_){ continue; }
     try {
       let parsed, debugBtn = "";
       if (/\.csv$/i.test(file.name)){
         parsed = parseCsv(await file.text(), file.name);
       } else if (/\.pdf$/i.test(file.name)){
         const buf = await file.arrayBuffer();
-        alert("arrayBuffer done, calling pdfToLines...");
         const lines = await pdfToLines(buf);
         const card = detectIssuer(lines, file.name);
         parsed = {txns: parseStatementLines(lines, card), card};
@@ -1599,7 +1598,20 @@ document.getElementById("et-save").addEventListener("click", ()=>{
 
 /* ---------- File input wiring ---------- */
 const dz = document.getElementById("dropzone"), fi = document.getElementById("fileinput");
-fi.addEventListener("change", e=>{ alert("FILES: " + e.target.files.length); if (e.target.files.length){ importFiles([...e.target.files]); } e.target.value=""; });
+/* iOS Safari: 'change' is unreliable on file inputs — 'input' fires more consistently.
+   Both listeners share a debounce flag so a browser that fires both doesn't double-import. */
+let _fileHandling = false;
+function _onFilePicked(e){
+  if (_fileHandling) return;
+  const list = e.target.files;
+  if (!list || !list.length) return;
+  _fileHandling = true;
+  importFiles([...list]);
+  try { e.target.value = ""; } catch(_){}
+  setTimeout(()=>{ _fileHandling = false; }, 2000);
+}
+fi.addEventListener("change", _onFilePicked);
+fi.addEventListener("input",  _onFilePicked);
 ["dragover","dragenter"].forEach(ev=>dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("drag"); }));
 ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("drag"); }));
 dz.addEventListener("drop", e=>{ if (e.dataTransfer.files.length) importFiles([...e.dataTransfer.files]); });

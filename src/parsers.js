@@ -206,22 +206,21 @@ function txnKey(t){ return t.date + "|" + t.amount.toFixed(2) + "|" + normMercha
 const PDF_DEBUG = {};   // cardId -> {filename, card, lines:[{line,status,reason,note}]}
 
 async function importFiles(files){
-  alert("importFiles start, count=" + files.length);
-  if (files.length) snapshot();
+  try { if (files.length) snapshot(); } catch(_){}
   const resultsEl = document.getElementById("importresults");
-  alert("resultsEl=" + (resultsEl ? "found" : "NULL"));
+  if (!resultsEl) return;
   for (const file of files){
     const cardId = "imp_" + Math.random().toString(36).slice(2,8);
-    resultsEl.insertAdjacentHTML("afterbegin",
-      `<div class="importcard" id="${cardId}"><h3>Reading ${escapeHtml(file.name)}…</h3><p>Parsing locally in your browser.</p></div>`);
-    alert("card inserted, parsing...");
+    try {
+      resultsEl.insertAdjacentHTML("afterbegin",
+        `<div class="importcard" id="${cardId}"><h3>Reading ${escapeHtml(file.name)}…</h3><p>Parsing locally in your browser.</p></div>`);
+    } catch(_){ continue; }
     try {
       let parsed, debugBtn = "";
       if (/\.csv$/i.test(file.name)){
         parsed = parseCsv(await file.text(), file.name);
       } else if (/\.pdf$/i.test(file.name)){
         const buf = await file.arrayBuffer();
-        alert("arrayBuffer done, calling pdfToLines...");
         const lines = await pdfToLines(buf);
         const card = detectIssuer(lines, file.name);
         parsed = {txns: parseStatementLines(lines, card), card};
