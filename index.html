@@ -611,6 +611,49 @@ function isAmexMetaLine(s){
   return /^(\+?[\d\s().\/\-]{6,}$|www\.|https?:|.*@.*\.|invoice\s*#|store\s*#\s*\d|tax:|carrier:|class:|from:|to:|ticket\s*(num|#)|passenger|document\s*type|date\s*of\s*dep|box\s+\d|po\s*#|squareup\.com|thrive\/|romaine|cfondren|billing|owners@)/i.test(s.trim());
 }
 
+async function pdfToLines(arrayBuffer){
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  const lines = [];
+  for (let p = 1; p <= pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    const rows = {};
+    for (const it of tc.items){
+      if (!it.str || !it.str.trim()) continue;
+      const y = Math.round(it.transform[5] / 2) * 2;
+      (rows[y] = rows[y] || []).push({x: it.transform[4], s: it.str});
+    }
+    const ys = Object.keys(rows).map(Number).sort((a,b)=>b-a);
+    for (const y of ys){
+      const line = rows[y].sort((a,b)=>a.x-b.x).map(o=>o.s).join(" ").replace(/\s+/g," ").trim();
+      if (line) lines.push(line);
+    }
+  }
+  return lines;
+}
+
+function detectIssuer(lines, filename){
+  const txt = (lines.slice(0, 120).join(" ") + " " + filename).toUpperCase();
+  if (/AMERICAN ?EXPRESS|AMEX/.test(txt)) return "AMEX";
+  if (/CHASE|JPMORGAN/.test(txt)) return "VISA";
+  if (/CITI|CITIBANK|THANKYOU/.test(txt)) return "CITI";
+  return "CARD";
+}
+
+function inferYears(lines){
+  const counts = {};
+  const re = /\b(0?[1-9]|1[0-2])\/(0?[1-9]|[12]\d|3[01])\/(\d{2}|\d{4})\b/g;
+  for (const l of lines){
+    let m;
+    while ((m = re.exec(l))){
+      let y = +m[3]; if (y < 100) y += 2000;
+      if (y >= 2000 && y <= 2100) counts[y] = (counts[y]||0) + 1;
+    }
+  }
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(e=>+e[0]);
+  return sorted.length ? sorted : [new Date().getFullYear()];
+}
+
 function parseStatementLines(lines, card){
   const years = inferYears(lines);
   const primaryYear = years[0];
