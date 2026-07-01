@@ -707,7 +707,7 @@ document.getElementById("et-save").addEventListener("click", ()=>{
 
 /* ---------- File input wiring ---------- */
 const dz = document.getElementById("dropzone"), fi = document.getElementById("fileinput");
-fi.addEventListener("change", e=>{ if (e.target.files.length){ toast(`Reading ${e.target.files.length} file(s)…`); importFiles([...e.target.files]); } e.target.value=""; });
+fi.addEventListener("change", e=>{ alert("FILES: " + e.target.files.length); if (e.target.files.length){ importFiles([...e.target.files]); } e.target.value=""; });
 ["dragover","dragenter"].forEach(ev=>dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("drag"); }));
 ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("drag"); }));
 dz.addEventListener("drop", e=>{ if (e.dataTransfer.files.length) importFiles([...e.dataTransfer.files]); });
