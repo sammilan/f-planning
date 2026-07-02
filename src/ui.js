@@ -707,22 +707,41 @@ document.getElementById("et-save").addEventListener("click", ()=>{
 
 /* ---------- File input wiring ---------- */
 const dz = document.getElementById("dropzone"), fi = document.getElementById("fileinput");
-/* iOS Safari: 'change' is unreliable on file inputs — 'input' fires more consistently.
-   Both listeners share a debounce flag so a browser that fires both doesn't double-import. */
+
 let _fileHandling = false;
-function _onFilePicked(e){
+function _processFiles(trigger){
   const dbg = document.getElementById("filedebug");
-  if (dbg) dbg.textContent = e.type + " fired · " + (e.target.files ? e.target.files.length : "?") + " file(s)";
+  if (dbg) dbg.textContent = trigger + " · " + (fi.files ? fi.files.length : 0) + " file(s)";
   if (_fileHandling) return;
-  const list = e.target.files;
+  const list = fi.files;
   if (!list || !list.length) return;
   _fileHandling = true;
   importFiles([...list]);
-  try { e.target.value = ""; } catch(_){}
-  setTimeout(()=>{ _fileHandling = false; }, 2000);
+  try { fi.value = ""; } catch(_){}
+  setTimeout(()=>{ _fileHandling = false; }, 3000);
 }
-fi.addEventListener("change", _onFilePicked);
-fi.addEventListener("input",  _onFilePicked);
+
+/* Standard events — work on desktop and some iOS */
+fi.addEventListener("change", () => _processFiles("change"));
+fi.addEventListener("input",  () => _processFiles("input"));
+
+/* iOS PWA fix: file picker dismissal restores window focus/visibility.
+   We note when the input was clicked, then check fi.files on next focus. */
+let _pickerOpen = false;
+fi.addEventListener("click", () => {
+  _pickerOpen = true;
+  const dbg = document.getElementById("filedebug");
+  if (dbg) dbg.textContent = "picker opened...";
+});
+function _checkAfterReturn(){
+  if (!_pickerOpen) return;
+  _pickerOpen = false;
+  setTimeout(() => _processFiles("focus-check"), 300);
+}
+window.addEventListener("focus", _checkAfterReturn);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") _checkAfterReturn();
+});
 ["dragover","dragenter"].forEach(ev=>dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("drag"); }));
 ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("drag"); }));
 dz.addEventListener("drop", e=>{ if (e.dataTransfer.files.length) importFiles([...e.dataTransfer.files]); });
