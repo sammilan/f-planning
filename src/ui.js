@@ -711,6 +711,8 @@ const dz = document.getElementById("dropzone"), fi = document.getElementById("fi
    Both listeners share a debounce flag so a browser that fires both doesn't double-import. */
 let _fileHandling = false;
 function _onFilePicked(e){
+  const dbg = document.getElementById("filedebug");
+  if (dbg) dbg.textContent = e.type + " fired · " + (e.target.files ? e.target.files.length : "?") + " file(s)";
   if (_fileHandling) return;
   const list = e.target.files;
   if (!list || !list.length) return;

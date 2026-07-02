@@ -263,6 +263,7 @@ License: MIT
   <div class="tab active" id="tab-summary">
     <div class="dropzone" id="dropzone">
       <b>Tap to choose statements</b><br>PDF or CSV · Amex, Chase, Citi · multiple files OK<br>
+      <span id="filedebug" style="font-size:11px;color:#888">v2026-07-01c</span><br>
       <input type="file" id="fileinput" multiple accept=".pdf,.csv,.CSV,.PDF,application/pdf,text/csv" style="margin-top:8px">
     </div>
     <div id="importresults"></div>
@@ -1645,6 +1646,8 @@ const dz = document.getElementById("dropzone"), fi = document.getElementById("fi
    Both listeners share a debounce flag so a browser that fires both doesn't double-import. */
 let _fileHandling = false;
 function _onFilePicked(e){
+  const dbg = document.getElementById("filedebug");
+  if (dbg) dbg.textContent = e.type + " fired · " + (e.target.files ? e.target.files.length : "?") + " file(s)";
   if (_fileHandling) return;
   const list = e.target.files;
   if (!list || !list.length) return;

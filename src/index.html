@@ -215,8 +215,9 @@
   <!-- SUMMARY -->
   <div class="tab active" id="tab-summary">
     <div class="dropzone" id="dropzone">
-      <b>Drop statements here</b> or tap to choose<br>PDF or CSV · Amex, Chase, Citi · multiple files OK<br><small style="color:#aaa">v2026-07-01b</small><br>
-      <input type="file" id="fileinput" multiple accept=".pdf,.csv,.CSV,.PDF,application/pdf,text/csv">
+      <b>Tap to choose statements</b><br>PDF or CSV · Amex, Chase, Citi · multiple files OK<br>
+      <span id="filedebug" style="font-size:11px;color:#888">v2026-07-01c</span><br>
+      <input type="file" id="fileinput" multiple accept=".pdf,.csv,.CSV,.PDF,application/pdf,text/csv" style="margin-top:8px">
     </div>
     <div id="importresults"></div>
     <div id="reviewbox"></div>
@@ -274,7 +275,11 @@
 <script src="src/core.js"></script>
 <script>/* BFB_WORKER_SRC: https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js */
 if (window.pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+  const _iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+  if (!_iOS) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+  }
+  /* On iOS, leave workerSrc empty — pdf.js falls back to main-thread fake worker */
 }
 </script>
 <script src="src/parsers.js"></script>
