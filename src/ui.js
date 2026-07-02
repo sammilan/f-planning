@@ -725,18 +725,18 @@ function _processFiles(trigger){
 fi.addEventListener("change", () => _processFiles("change"));
 fi.addEventListener("input",  () => _processFiles("input"));
 
-/* iOS PWA fix: file picker dismissal restores window focus/visibility.
-   We note when the input was clicked, then check fi.files on next focus. */
-let _pickerOpen = false;
-fi.addEventListener("click", () => {
-  _pickerOpen = true;
-  const dbg = document.getElementById("filedebug");
-  if (dbg) dbg.textContent = "picker opened...";
-});
+/* iOS Safari doesn't fire change/input on file inputs — the OS handles the tap
+   directly. Workaround: check fi.files whenever the page regains visibility,
+   which happens when the file picker sheet is dismissed. */
+let _lastFileKey = "";
 function _checkAfterReturn(){
-  if (!_pickerOpen) return;
-  _pickerOpen = false;
-  setTimeout(() => _processFiles("focus-check"), 300);
+  setTimeout(() => {
+    if (!fi.files || !fi.files.length) return;
+    const key = [...fi.files].map(f=>f.name+f.size).join("|");
+    if (key === _lastFileKey) return;
+    _lastFileKey = key;
+    _processFiles("visibility-check");
+  }, 400);
 }
 window.addEventListener("focus", _checkAfterReturn);
 document.addEventListener("visibilitychange", () => {
